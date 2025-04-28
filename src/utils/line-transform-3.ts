@@ -9,7 +9,7 @@ export class LineTransform extends Transform {
   private keyCache: Map<string, string>;
 
   constructor(baseUrl: string) {
-    super({ objectMode: true });
+    super();
     this.buffer = '';
     this.baseUrl = baseUrl;
     this.keyCache = new Map();
@@ -20,87 +20,42 @@ export class LineTransform extends Transform {
     const lines = data.split(/\r?\n/);
     this.buffer = lines.pop() || '';
 
-    // Process all lines except the last one (which might be incomplete)
-    const processLinePromises = lines.map(line => this.processLine(line));
-    
-    Promise.all(processLinePromises)
-      .then(modifiedLines => {
-        modifiedLines.forEach(line => {
-          this.push(line + '\n');
-        });
-        callback();
-      })
-      .catch(err => {
-        callback(err);
-      });
+    for (const line of lines) {
+      const modifiedLine = this.processLine(line);
+      this.push(modifiedLine + '\n');
+    }
+
+    callback();
   }
 
   _flush(callback: TransformCallback) {
     if (this.buffer) {
-      this.processLine(this.buffer)
-        .then(modifiedLine => {
-          this.push(modifiedLine);
-          callback();
-        })
-        .catch(err => {
-          callback(err);
-        });
-    } else {
-      callback();
+      const modifiedLine = this.processLine(this.buffer);
+      this.push(modifiedLine);
     }
+    callback();
   }
 
-  private async processLine(line: string): Promise<string> {
+  private processLine(line: string): string {
     // Handle encryption key
     if (line.includes('#EXT-X-KEY:METHOD=AES-128,URI=')) {
-      // Extract the URI value
-      const match = line.match(/URI="([^"]+)"/);
-      if (match && match[1]) {
-        const keyUrl = match[1];
-        
-        try {
-          // Check if we already have this key cached
-          if (!this.keyCache.has(keyUrl)) {
-            // Fetch the key
-            const response = await axios.get(keyUrl, {
-              responseType: 'arraybuffer',
-              headers: { 
-                'Accept': '*/*',
-                'Referer': this.baseUrl,
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-              }
-            });
-            
-            // Convert the binary key to base64
-            const keyData = Buffer.from(response.data).toString('base64');
-            // Cache it
-            this.keyCache.set(keyUrl, keyData);
-          }
-          
-          // Get the cached key data
-          const keyData = this.keyCache.get(keyUrl);
-          // Replace the URI with a data URI containing the key
-          return line.replace(
-            `URI="${keyUrl}"`,
-            `URI="data:application/octet-stream;base64,${keyData}"`
-          );
-        } catch (error) {
-          console.error(`Error fetching key: ${error}`);
-          // Fall back to proxying if fetching fails
-          return line.replace(
-            `URI="${keyUrl}"`, 
-            `URI="m3u8-proxy-3?url=${encodeURIComponent(keyUrl)}"`
-          );
+        // Extract the URI value
+        const match = line.match(/URI="([^"]+)"/);
+        if (match && match[1]) {
+            const keyUrl = match[1];
+            // Replace the original URL with our proxied URL
+            return line.replace(
+                `URI="${keyUrl}"`, 
+                `URI="https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${keyUrl}"`
+            );
         }
-      }
     }
-    
     if (line.endsWith('.m3u8') || line.endsWith('.ts')) {
-      return `m3u8-proxy-3?url=${encodeURIComponent(this.baseUrl + line)}`;
+      return `https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${this.baseUrl}${line}`;
     }
 
     if (allowedExtensions.some(ext => line.endsWith(ext))) {
-      return `m3u8-proxy-3?url=${encodeURIComponent(line)}`;
+      return `https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${line}`;
     }
 
     return line;
