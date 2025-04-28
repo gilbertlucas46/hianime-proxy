@@ -9,10 +9,11 @@ export const m3u8Proxy = async (req: Request, res: Response) => {
 
     const isStaticFiles = allowedExtensions.some(ext => url.endsWith(ext));
     const baseUrl = url.replace(/[^/]+$/, "");
+    console.log("baseUrl", url);
 
     const response = await axios.get(url, {
       responseType: 'stream',
-      headers: { Accept: "*/*", Referer: "https://megacloud.blog/" }
+      headers: { Accept: "*/*", Referer: "https://megacloud.blog/", Orgin: "https://megacloud.blog" },
     });
 
     const headers = { ...response.headers };
