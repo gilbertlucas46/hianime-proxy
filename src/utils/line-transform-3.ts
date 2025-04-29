@@ -37,25 +37,12 @@ export class LineTransform extends Transform {
   }
 
   private processLine(line: string): string {
-    // Handle encryption key
-    if (line.includes('#EXT-X-KEY:METHOD=AES-128,URI=')) {
-        // Extract the URI value
-        const match = line.match(/URI="([^"]+)"/);
-        if (match && match[1]) {
-            const keyUrl = match[1];
-            // Replace the original URL with our proxied URL
-            return line.replace(
-                `URI="${keyUrl}"`, 
-                `URI="https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${keyUrl}"`
-            );
-        }
-    }
     if (line.endsWith('.m3u8') || line.endsWith('.ts')) {
-      return `https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${this.baseUrl}${line}`;
+      return `/m3u8-proxy-3?url=${this.baseUrl}${line}`;
     }
 
     if (allowedExtensions.some(ext => line.endsWith(ext))) {
-      return `https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${line}`;
+      return `/m3u8-proxy-3?url=${line}`;
     }
 
     return line;
