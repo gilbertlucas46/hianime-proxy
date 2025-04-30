@@ -89,7 +89,7 @@ export class LineTransform extends Transform {
           // Fall back to proxying if fetching fails
           return line.replace(
             `URI="${keyUrl}"`, 
-            `URI="m3u8-proxy-3?url=${encodeURIComponent(keyUrl)}"`
+            `URI="https://hianime-proxy-green.vercel.app/m3u8-proxy-3?url=${keyUrl}"`
           );
         }
       }
