@@ -1,15 +1,18 @@
 import { Transform, TransformCallback } from 'stream';
+import axios from 'axios';
 
 export const allowedExtensions = ['.ts', '.png', '.jpg', '.webp', '.ico', '.html', '.js', '.css', '.txt'];
 
 export class LineTransform extends Transform {
   private buffer: string;
   private baseUrl: string;
+  private keyCache: Map<string, string>;
 
   constructor(baseUrl: string) {
     super();
     this.buffer = '';
     this.baseUrl = baseUrl;
+    this.keyCache = new Map();
   }
 
   _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback) {
@@ -50,7 +53,7 @@ export class LineTransform extends Transform {
   }
 
   private async processLine(line: string): Promise<string> {
-    // Skip comments and blank lines (except for important ones)
+    // Skip comments and blank lines (except for the important ones)
     if ((line.startsWith('#') && 
          !line.includes('#EXT-X-KEY') && 
          !line.startsWith('#EXTINF')) || 
@@ -60,35 +63,36 @@ export class LineTransform extends Transform {
 
     // Handle encryption key
     if (line.includes('#EXT-X-KEY:METHOD=AES-128,URI=')) {
+      // Extract the URI value
       const match = line.match(/URI="([^"]+)"/);
       if (match && match[1]) {
         const keyUrl = match[1];
-        console.log(`Found key URL: ${keyUrl}`);
         
-        // Always use absolute path with leading slash for the proxy
-        return line.replace(
-          `URI="${keyUrl}"`,
-          `URI="/m3u8-proxy-3?url=${encodeURIComponent(keyUrl)}"`
-        );
+        if (keyUrl.includes('mon.key')) {
+          console.log(`Proxying encryption key: ${keyUrl}`);
+          // Use our proxy for the key
+          return line.replace(
+            `URI="${keyUrl}"`, 
+            `URI="m3u8-proxy-3?url=${encodeURIComponent(keyUrl)}"`
+          );
+        }
       }
     }
     
-    // Handle segment URLs (not starting with #)
-    if (!line.startsWith('#')) {
-      let fullUrl;
-      
-      // If it's already a full URL, use it as is
+    // Handle segment URLs (.jpg files in this case)
+    if (!line.startsWith('#') && (
+        line.endsWith('.jpg') || 
+        line.endsWith('.m3u8') || 
+        allowedExtensions.some(ext => line.endsWith(ext))
+      )) {
+      // Check if it's a full URL or a relative path
       if (line.startsWith('http')) {
-        fullUrl = line;
+        return `m3u8-proxy-3?url=${encodeURIComponent(line)}`;
       } else {
-        // Otherwise, it's a relative path, prepend baseUrl
-        fullUrl = this.baseUrl + line;
+        return `m3u8-proxy-3?url=${encodeURIComponent(this.baseUrl + line)}`;
       }
-      
-      // Return the proxied URL with absolute path
-      return `/m3u8-proxy-3?url=${encodeURIComponent(fullUrl)}`;
     }
-    
+
     return line;
   }
 }
