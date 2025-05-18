@@ -35,7 +35,7 @@ export class LineTransform extends Transform {
 
   private processLine(line: string): string {
     if (line.endsWith('.m3u8') || line.endsWith('.ts')) {
-      return `m3u8-proxy-2?url=${line}`;
+      return `m3u8-proxy-2?url=${this.baseUrl}${line}`;
     }
 
     if (allowedExtensions.some(ext => line.endsWith(ext))) {
