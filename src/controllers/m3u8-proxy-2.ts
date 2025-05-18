@@ -13,7 +13,7 @@ export const m3u8Proxy2 = async (req: Request, res: Response) => {
 
     const response = await axios.get(url, {
       responseType: 'stream',
-      headers: { Accept: "*/*", Referer: "https://aniwave.at/", 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' }
+      headers: { Accept: "*/*", Referer: "https://megacloud.blog/", 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' }
     });
     console.log("response", response);
     const headers = { ...response.headers };
