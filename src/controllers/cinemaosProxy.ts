@@ -46,11 +46,19 @@ export const cinemaosProxy = async (req: Request, res: Response) => {
         };
 
         const originalHeadersQuery = buildHeadersQuery();
+        const getRandomUserAgent = () => {
+    const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ];
+    return userAgents[Math.floor(Math.random() * userAgents.length)];
+};
 
         // Extract custom headers from request query parameters or use defaults
         const customReferer = req.query.referer as string || req.headers.referer || "https://cinemaos.live/";
         const customUserAgent = req.query.userAgent as string || req.headers['user-agent'] ||
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+            getRandomUserAgent();
         const customOrigin = req.query.origin as string || req.headers.origin || customReferer;
         console.log("CinemaOS: Using Referer:", customReferer);
         console.log("CinemaOS: Using User-Agent:", customUserAgent);
@@ -75,9 +83,13 @@ export const cinemaosProxy = async (req: Request, res: Response) => {
             'Origin': customOrigin,
             'User-Agent': customUserAgent,
             // Remove X-Forwarded headers that might expose Vercel
+            'CF-Ray': undefined,
+            'CF-Visitor': undefined,
+            'CF-Connecting-IP': undefined,
             'X-Forwarded-For': undefined,
             'X-Forwarded-Proto': undefined,
-            'X-Vercel-Id': undefined
+            'X-Vercel-Id': undefined,
+            'X-Real-IP': undefined
         };
 
         // Add any additional custom headers from query parameters
