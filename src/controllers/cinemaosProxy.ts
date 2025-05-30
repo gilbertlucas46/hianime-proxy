@@ -51,7 +51,7 @@ export const cinemaosProxy = async (req: Request, res: Response) => {
     const customReferer = req.query.referer as string || req.headers.referer || "https://cinemaos.live/";
     const customUserAgent = req.query.userAgent as string || req.headers['user-agent'] || 
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
-    const customOrigin = req.query.origin as string || req.headers.origin || "https://cinemaos.live";
+    const customOrigin = req.query.origin as string || req.headers.origin || customReferer;
     console.log("CinemaOS: Using Referer:", customReferer);
     console.log("CinemaOS: Using User-Agent:", customUserAgent);
     console.log("CinemaOS: Using Origin:", customOrigin);
@@ -61,18 +61,9 @@ export const cinemaosProxy = async (req: Request, res: Response) => {
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
-      'Connection': 'keep-alive',
       'Referer': customReferer,
       'Origin': customOrigin,
       'User-Agent': customUserAgent,
-      'sec-ch-ua': '"Chromium";v="123", "Google Chrome";v="123"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"macOS"',
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'cross-site',
-      'Pragma': 'no-cache',
-      'Cache-Control': 'no-cache'
     };
 
     // Add any additional custom headers from query parameters
