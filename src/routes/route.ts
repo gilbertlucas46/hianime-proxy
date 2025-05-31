@@ -6,6 +6,7 @@ import { m3u8Proxy4 } from '../controllers/meu8-proxy-4';
 import { anizoneProxy } from '../controllers/anizone';
 import { subtitleProxy } from '../controllers/subtitle';
 import { cinemaosProxy } from '../controllers/cinemaosProxy';
+import { miruroProxy } from '../controllers/miruro-proxy';
 
 export const router = express.Router();
 
@@ -15,6 +16,7 @@ router.get('/m3u8-proxy-3', m3u8Proxy3);
 router.get('/m3u8-proxy-4', m3u8Proxy4);
 router.get('/anizone', anizoneProxy);
 router.get('/cinemaos-proxy', cinemaosProxy);
+router.get('/miruro-proxy', miruroProxy);
 router.get('/subtitle-proxy', (req, res, next) => {
   Promise.resolve(subtitleProxy(req, res)).catch(next);
 });
