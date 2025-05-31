@@ -59,9 +59,9 @@ export const miruroProxy = async (req: Request, res: Response) => {
         };
 
         // Extract custom headers from request query parameters or use defaults
-        const customReferer = req.query.referer as string || req.headers.referer || "https://douvid.xyz/";
-        const customUserAgent = req.query.userAgent as string || req.headers['user-agent'] || getRandomUserAgent();
-        const customOrigin = req.query.origin as string || req.headers.origin || "https://douvid.xyz";
+        const customReferer =  "https://douvid.xyz/";
+        const customUserAgent =  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+        const customOrigin =  "https://douvid.xyz";
         console.log("Miruro: Using Referer:", customReferer);
         console.log("Miruro: Using User-Agent:", customUserAgent);
         console.log("Miruro: Using Origin:", customOrigin);
@@ -115,8 +115,11 @@ export const miruroProxy = async (req: Request, res: Response) => {
         delete headers['transfer-encoding'];
         delete headers['connection'];
 
-        // Set appropriate content type
-        if (url.endsWith('.m3u8')) {
+        // Set appropriate content type based on URL and response
+        if (url.endsWith('.m3u8') || 
+            typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('application/x-mpegURL') || 
+            typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('application/vnd.apple.mpegurl') ||
+            typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('text/plain')) {
             headers['Content-Type'] = 'application/x-mpegURL';
         } else if (url.endsWith('.ts')) {
             headers['Content-Type'] = 'video/mp2t';
@@ -129,6 +132,43 @@ export const miruroProxy = async (req: Request, res: Response) => {
         }
 
         res.set(headers);
+
+        // Helper function to process M3U8 content
+        const processM3U8Content = (content: string) => {
+            console.log('Miruro: Raw M3U8 content preview:', content.substring(0, 300));
+            
+            const processedContent = content.split('\n').map(line => {
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines and comments, but keep HLS tags
+                if (!trimmedLine || trimmedLine.startsWith('#')) {
+                    return line;
+                }
+                
+                let absoluteUrl: string;
+                
+                if (trimmedLine.startsWith('http')) {
+                    // Already absolute URL
+                    absoluteUrl = trimmedLine;
+                } else {
+                    // Relative URL - make it absolute
+                    try {
+                        absoluteUrl = new URL(trimmedLine, baseUrl).href;
+                    } catch (error) {
+                        console.warn('Miruro: Failed to resolve URL:', trimmedLine);
+                        return line;
+                    }
+                }
+                
+                const separator = originalHeadersQuery ? '&' : '';
+                const proxiedUrl = `/miruro-proxy?url=${encodeURIComponent(absoluteUrl)}${separator}${originalHeadersQuery}`;
+                console.log(`Miruro: Proxifying URL: ${absoluteUrl} -> ${proxiedUrl}`);
+                return proxiedUrl;
+            }).join('\n');
+            
+            console.log('Miruro: Processed M3U8 content preview:', processedContent.substring(0, 300));
+            return processedContent;
+        };
 
         // Handle image files that might contain hidden M3U8 data
         if (
@@ -171,24 +211,9 @@ export const miruroProxy = async (req: Request, res: Response) => {
                         
                         if (m3u8Content.includes('#EXTM3U') || m3u8Content.includes('#EXT-X-')) {
                             console.log("Miruro: Found hidden M3U8 content in image");
-                            // Process ALL URLs in the M3U8 content (both relative and absolute)
-                            const processedContent = m3u8Content.split('\n').map(line => {
-                                if (line.trim() && !line.startsWith('#')) {
-                                    let absoluteUrl: string;
-                                    
-                                    if (line.startsWith('http')) {
-                                        // Already absolute URL
-                                        absoluteUrl = line.trim();
-                                    } else {
-                                        // Relative URL - make it absolute
-                                        absoluteUrl = new URL(line.trim(), baseUrl).href;
-                                    }
-                                    
-                                    const separator = originalHeadersQuery ? '&' : '';
-                                    return `/miruro-proxy?url=${encodeURIComponent(absoluteUrl)}${separator}${originalHeadersQuery}`;
-                                }
-                                return line;
-                            }).join('\n');
+                            console.log('Miruro: Hidden M3U8 content preview:', m3u8Content.substring(0, 300));
+                            
+                            const processedContent = processM3U8Content(m3u8Content);
                             
                             res.set('Content-Type', 'application/x-mpegURL');
                             return res.send(processedContent);
@@ -214,31 +239,26 @@ export const miruroProxy = async (req: Request, res: Response) => {
         }
 
         // Handle M3U8 files - process URLs to proxy through our server
-        if (url.endsWith('.m3u8')) {
+        if (
+            url.endsWith('.m3u8') ||
+            (typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('application/x-mpegURL')) ||
+            (typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('application/vnd.apple.mpegurl')) ||
+            (typeof headers['Content-Type'] === 'string' && headers['Content-Type'].includes('text/plain'))
+        ) {
             console.log(`Miruro: Processing m3u8: ${url.split('/').pop()}`);
             const chunks: Buffer[] = [];
             response.data.on('data', (chunk: Buffer) => chunks.push(chunk));
             response.data.on('end', () => {
                 const content = Buffer.concat(chunks).toString('utf8');
-                const processedContent = content.split('\n').map(line => {
-                    if (line.trim() && !line.startsWith('#')) {
-                        let absoluteUrl: string;
-                        
-                        if (line.startsWith('http')) {
-                            // Already absolute URL
-                            absoluteUrl = line.trim();
-                        } else {
-                            // Relative URL - make it absolute
-                            absoluteUrl = new URL(line.trim(), baseUrl).href;
-                        }
-                        
-                        const separator = originalHeadersQuery ? '&' : '';
-                        return `/miruro-proxy?url=${encodeURIComponent(absoluteUrl)}${separator}${originalHeadersQuery}`;
-                    }
-                    return line;
-                }).join('\n');
                 
-                res.send(processedContent);
+                // Check if content is actually M3U8
+                if (content.includes('#EXTM3U') || content.includes('#EXT-X-')) {
+                    const processedContent = processM3U8Content(content);
+                    res.send(processedContent);
+                } else {
+                    // Not M3U8 content, return as-is
+                    res.send(content);
+                }
             });
             response.data.on('error', (error: any) => {
                 console.error('Miruro stream error:', error);
