@@ -137,7 +137,6 @@ export const miruroProxy = async (req: Request, res: Response) => {
         ) {
             console.log(`Miruro: Processing image file: ${url.split('/').pop()}`);
             
-            // For images, we need to buffer the data to check for hidden M3U8
             const chunks: Buffer[] = [];
             response.data.on('data', (chunk: Buffer) => chunks.push(chunk));
             response.data.on('end', () => {
@@ -172,10 +171,19 @@ export const miruroProxy = async (req: Request, res: Response) => {
                         
                         if (m3u8Content.includes('#EXTM3U') || m3u8Content.includes('#EXT-X-')) {
                             console.log("Miruro: Found hidden M3U8 content in image");
-                            // Process relative URLs in the M3U8 content
+                            // Process ALL URLs in the M3U8 content (both relative and absolute)
                             const processedContent = m3u8Content.split('\n').map(line => {
-                                if (line.trim() && !line.startsWith('#') && !line.startsWith('http')) {
-                                    const absoluteUrl = new URL(line.trim(), baseUrl).href;
+                                if (line.trim() && !line.startsWith('#')) {
+                                    let absoluteUrl: string;
+                                    
+                                    if (line.startsWith('http')) {
+                                        // Already absolute URL
+                                        absoluteUrl = line.trim();
+                                    } else {
+                                        // Relative URL - make it absolute
+                                        absoluteUrl = new URL(line.trim(), baseUrl).href;
+                                    }
+                                    
                                     const separator = originalHeadersQuery ? '&' : '';
                                     return `/miruro-proxy?url=${encodeURIComponent(absoluteUrl)}${separator}${originalHeadersQuery}`;
                                 }
@@ -205,11 +213,6 @@ export const miruroProxy = async (req: Request, res: Response) => {
             return;
         }
 
-        if (isStaticFiles) {
-            console.log(`Miruro: Piping static file: ${url.split('/').pop()}`);
-            return response.data.pipe(res);
-        }
-
         // Handle M3U8 files - process URLs to proxy through our server
         if (url.endsWith('.m3u8')) {
             console.log(`Miruro: Processing m3u8: ${url.split('/').pop()}`);
@@ -218,8 +221,17 @@ export const miruroProxy = async (req: Request, res: Response) => {
             response.data.on('end', () => {
                 const content = Buffer.concat(chunks).toString('utf8');
                 const processedContent = content.split('\n').map(line => {
-                    if (line.trim() && !line.startsWith('#') && !line.startsWith('http')) {
-                        const absoluteUrl = new URL(line.trim(), baseUrl).href;
+                    if (line.trim() && !line.startsWith('#')) {
+                        let absoluteUrl: string;
+                        
+                        if (line.startsWith('http')) {
+                            // Already absolute URL
+                            absoluteUrl = line.trim();
+                        } else {
+                            // Relative URL - make it absolute
+                            absoluteUrl = new URL(line.trim(), baseUrl).href;
+                        }
+                        
                         const separator = originalHeadersQuery ? '&' : '';
                         return `/miruro-proxy?url=${encodeURIComponent(absoluteUrl)}${separator}${originalHeadersQuery}`;
                     }
@@ -233,6 +245,11 @@ export const miruroProxy = async (req: Request, res: Response) => {
                 res.status(500).send('Stream error');
             });
             return;
+        }
+
+        if (isStaticFiles) {
+            console.log(`Miruro: Piping static file: ${url.split('/').pop()}`);
+            return response.data.pipe(res);
         }
 
         // For other files, pipe directly
