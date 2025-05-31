@@ -107,6 +107,8 @@ export const miruroProxy = async (req: Request, res: Response) => {
             timeout: 30000
         });
 
+        console.log(`Miruro:  ${response}`);
+
         const headers = { ...response.headers };
 
         // Remove problematic headers
@@ -169,6 +171,27 @@ export const miruroProxy = async (req: Request, res: Response) => {
             console.log('Miruro: Processed M3U8 content preview:', processedContent.substring(0, 300));
             return processedContent;
         };
+
+        if(!url.endsWith('.m3u8') ) { 
+            // Fetch the image data from the URL and pipe it directly to the response
+            // Follow redirects, get the final image data, and send it back with proper CORS headers
+            const chunks: Buffer[] = [];
+            response.data.on('data', (chunk: Buffer) => chunks.push(chunk));
+            response.data.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                // Set CORS headers again to ensure they're present
+                res.header('Access-Control-Allow-Origin', '*');
+                res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+                res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent');
+                res.set('Content-Type', 'image/png'); // Default to PNG, can be adjusted based on actual content type
+                res.send(buffer);
+            });
+            response.data.on('error', (error: any) => {
+                console.error('Miruro stream error:', error);
+                res.status(500).send('Stream error');
+            });
+            return;
+        }
 
         // Handle image files that might contain hidden M3U8 data
         if (
