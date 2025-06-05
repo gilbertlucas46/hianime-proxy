@@ -4,8 +4,9 @@ import { Request, Response } from "express";
 export const animetsuProxy = async (req: Request, res: Response) => {
     // Set CORS headers immediately
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Range');
+    res.header('Access-Control-Expose-Headers', 'Accept-Ranges, Content-Length, Content-Range, Content-Type');
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
@@ -36,28 +37,57 @@ export const animetsuProxy = async (req: Request, res: Response) => {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
         };
 
+        // Forward Range header if present (for video seeking/partial content)
+        if (req.headers.range) {
+            requestHeaders['Range'] = req.headers.range;
+        }
+
         const response = await axios.get(url, {
             responseType: 'stream',
             headers: requestHeaders,
             maxRedirects: 5,
-            timeout: 30000
+            timeout: 30000,
+            validateStatus: function (status) {
+                return status < 400; // Accept 200, 206 (partial content), etc.
+            }
         });
 
-        const headers = { ...response.headers };
+        // Essential headers for video streaming
+        const streamingHeaders: any = {
+            'Content-Type': 'video/mp4',
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Length, Content-Range, Content-Type',
+            'X-Content-Type-Options': 'nosniff'
+        };
 
-        // Remove problematic headers
-        delete headers['content-length'];
-        delete headers['content-encoding'];
-        delete headers['transfer-encoding'];
-        delete headers['connection'];
+        // Include content length if available
+        if (response.headers['content-length']) {
+            streamingHeaders['Content-Length'] = response.headers['content-length'];
+        }
 
-        // Force content type to video/mp4
-        headers['Content-Type'] = 'video/mp4';
-        headers['Accept-Ranges'] = 'bytes';
+        // Include content range for partial content (video seeking)
+        if (response.headers['content-range']) {
+            streamingHeaders['Content-Range'] = response.headers['content-range'];
+        }
 
-        res.set(headers);
+        // Include ETag for caching
+        if (response.headers['etag']) {
+            streamingHeaders['ETag'] = response.headers['etag'];
+        }
 
-        console.log(`Animetsu: Streaming MP4 video from: ${url}`);
+        // Include cache control
+        if (response.headers['cache-control']) {
+            streamingHeaders['Cache-Control'] = response.headers['cache-control'];
+        } else {
+            streamingHeaders['Cache-Control'] = 'public, max-age=3600';
+        }
+
+        // Set the status code (important for range requests)
+        res.status(response.status);
+        res.set(streamingHeaders);
+
+        console.log(`Animetsu: Streaming MP4 video from: ${url} (Status: ${response.status})`);
         
         // Pipe the video stream directly to response
         response.data.pipe(res);
