@@ -7,6 +7,7 @@ import { anizoneProxy } from '../controllers/anizone';
 import { subtitleProxy } from '../controllers/subtitle';
 import { cinemaosProxy } from '../controllers/cinemaosProxy';
 import { miruroProxy } from '../controllers/miruro-proxy';
+import { animetsuProxy } from '../controllers/animetsuProxy';
 
 export const router = express.Router();
 
@@ -17,6 +18,9 @@ router.get('/m3u8-proxy-4', m3u8Proxy4);
 router.get('/anizone', anizoneProxy);
 router.get('/cinemaos-proxy', cinemaosProxy);
 router.get('/miruro-proxy', miruroProxy);
+router.get('/animetsu-proxy', (req, res, next) => {
+  Promise.resolve(animetsuProxy(req, res)).catch(next);
+});
 router.get('/subtitle-proxy', (req, res, next) => {
   Promise.resolve(subtitleProxy(req, res)).catch(next);
 });
