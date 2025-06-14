@@ -10,10 +10,30 @@ interface DecodedPayload {
 }
 
 export const encodedProxy = async (req: Request, res: Response) => {
-    // Set CORS headers immediately
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent');
+    // Set CORS headers immediately with specific origins
+    const allowedOrigins = [
+        'https://cinemaos.live',
+        'https://www.cinemaos.live',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://if9.ppzj-youtube.cfd',
+        'https://gstream.hollymoviefd.cc',
+        'https://cinemaos-v3.netlify.app',
+        'https://cinemaos-v3.vercel.app',
+        '*' // Allow all origins as fallback
+    ];
+
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    } else {
+        res.header('Access-Control-Allow-Origin', '*');
+    }
+    
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
@@ -26,7 +46,8 @@ export const encodedProxy = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "url parameter is required" });
         }
 
-        console.log("Encoded Proxy: Processing URL:", encodedUrl);
+        console.log("Neo Proxy: Processing URL:", encodedUrl);
+        console.log("Neo Proxy: Request Origin:", req.headers.origin);
 
         // Extract the base64 part (everything before .m3u8)
         const base64Match = encodedUrl.match(/^https?:\/\/[^\/]+\/([^.]+)\.m3u8$/);
@@ -108,9 +129,9 @@ export const encodedProxy = async (req: Request, res: Response) => {
         const customUserAgent = req.query.userAgent as string || req.headers['user-agent'] || getRandomUserAgent();
         const customOrigin = req.query.origin as string || decodedPayload.o || req.headers.origin || customReferer;
         
-        console.log("Encoded Proxy: Using Referer:", customReferer);
-        console.log("Encoded Proxy: Using User-Agent:", customUserAgent);
-        console.log("Encoded Proxy: Using Origin:", customOrigin);
+        console.log("Neo Proxy: Using Referer:", customReferer);
+        console.log("Neo Proxy: Using User-Agent:", customUserAgent);
+        console.log("Neo Proxy: Using Origin:", customOrigin);
 
         // Build request headers
         const requestHeaders: any = {
@@ -183,25 +204,43 @@ export const encodedProxy = async (req: Request, res: Response) => {
             headers['Content-Type'] = 'text/vtt';
         }
 
+        // Ensure CORS headers are also set on the response
+        headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
+            ? req.headers.origin 
+            : '*';
+        headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+        headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization';
+
         res.set(headers);
 
         if (isStaticFiles) {
-            console.log(`Encoded Proxy: Piping static file: ${targetUrl.split('/').pop()}`);
+            console.log(`Neo Proxy: Piping static file: ${targetUrl.split('/').pop()}`);
             return response.data.pipe(res);
         }
 
-        console.log(`Encoded Proxy: Transforming m3u8: ${targetUrl.split('/').pop()}`);
+        console.log(`Neo Proxy: Transforming m3u8: ${targetUrl.split('/').pop()}`);
         const transform = new EncodedLineTransform(baseUrl, originalHeadersQuery);
         response.data.pipe(transform).pipe(res);
 
     } catch (error: any) {
-        console.error("Encoded proxy error:", {
+        console.error("Neo proxy error:", {
             message: error.message,
             status: error.response?.status,
             statusText: error.response?.statusText,
             headers: error.response?.headers,
-            url: req.query.url
+            url: req.query.url,
+            origin: req.headers.origin
         });
+
+        // Ensure CORS headers are set even on error responses
+        const origin = req.headers.origin;
+        const allowedOrigins = ['https://cinemaos.live', 'https://www.cinemaos.live', '*'];
+        
+        if (origin && allowedOrigins.includes(origin)) {
+            res.header('Access-Control-Allow-Origin', origin);
+        } else {
+            res.header('Access-Control-Allow-Origin', '*');
+        }
 
         res.status(error.response?.status || 500).json({
             error: `Proxy error: ${error.message}`,
