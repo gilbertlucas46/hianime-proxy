@@ -8,6 +8,7 @@ import { subtitleProxy } from '../controllers/subtitle';
 import { cinemaosProxy } from '../controllers/cinemaosProxy';
 import { miruroProxy } from '../controllers/miruro-proxy';
 import { animetsuProxy } from '../controllers/animetsuProxy';
+import { encodedProxy } from '../controllers/neoProxy';
 
 export const router = express.Router();
 
@@ -24,3 +25,4 @@ router.get('/animetsu-proxy', (req, res, next) => {
 router.get('/subtitle-proxy', (req, res, next) => {
   Promise.resolve(subtitleProxy(req, res)).catch(next);
 });
+router.get('/neo-proxy', encodedProxy);
