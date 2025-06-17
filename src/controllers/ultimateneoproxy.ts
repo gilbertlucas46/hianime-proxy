@@ -760,8 +760,8 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'cross-site',
             'Upgrade-Insecure-Requests': '1',
-            'Referer': customReferer.includes("ridomovies.tv") ?  getHostFromUrl(decodedPayload.u) === "https://srv10.cdnimages509.sbs" ? "https://closeload.top/" : getHostFromUrl(decodedPayload.u)+"/" : customReferer,
-            'Origin': customOrigin.includes("ridomovies.tv") ? getHostFromUrl(decodedPayload.u) === "https://srv10.cdnimages509.sbs" ? "https://closeload.top" : getHostFromUrl(decodedPayload.u) : customOrigin,
+            'Referer': customReferer.includes("ridomovies.tv") ?  !getHostFromUrl(decodedPayload.u).includes("ridoo") ? "https://closeload.top/" : "https://ridoo.net/" : customReferer,
+            'Origin': customOrigin.includes("ridomovies.tv") ? !getHostFromUrl(decodedPayload.u).includes("ridoo") ? "https://srv10.cdnimages509.sbs" : "https://ridoo.net" : customOrigin,
             'User-Agent': customUserAgent
         };
 
