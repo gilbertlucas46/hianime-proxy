@@ -734,6 +734,18 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
         console.log("Universal Proxy: Using Origin:", customOrigin);
 
         // Enhanced request headers with better fingerprinting
+        // Extract host URL from decodedPayload.u
+        const getHostFromUrl = (url: string): string => {
+            try {
+            const urlObj = new URL(url);
+            return `${urlObj.protocol}//${urlObj.host}`;
+            } catch {
+            return '';
+            }
+        };
+
+        const targetHostUrl = getHostFromUrl(decodedPayload.u);
+
         const requestHeaders: any = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -748,8 +760,8 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'cross-site',
             'Upgrade-Insecure-Requests': '1',
-            'Referer': customReferer.includes("ridomovies.tv") ? "https://closeload.top/" : customReferer,
-            'Origin': customOrigin.includes("ridomovies.tv") ? "https://closeload.top" : customOrigin,
+            'Referer': customReferer.includes("ridomovies.tv") ?  getHostFromUrl(decodedPayload.u) === "https://srv10.cdnimages509.sbs" ? "https://closeload.top/" : getHostFromUrl(decodedPayload.u)+"/" : customReferer,
+            'Origin': customOrigin.includes("ridomovies.tv") ? getHostFromUrl(decodedPayload.u) === "https://srv10.cdnimages509.sbs" ? "https://closeload.top" : getHostFromUrl(decodedPayload.u) : customOrigin,
             'User-Agent': customUserAgent
         };
 
