@@ -10,6 +10,7 @@ import { miruroProxy } from '../controllers/miruro-proxy';
 import { animetsuProxy } from '../controllers/animetsuProxy';
 import { encodedProxy } from '../controllers/neoProxy';
 import { ultimateNeoProxy } from '../controllers/ultimateneoproxy';
+import { tomProxy } from '../controllers/tomProxy';
 
 export const router = express.Router();
 
@@ -28,3 +29,6 @@ router.get('/subtitle-proxy', (req, res, next) => {
 });
 router.get('/neo-proxy', encodedProxy);
 router.get('/encoded-proxy', ultimateNeoProxy);
+router.get('/tom-proxy',  (req, res, next) => {
+  Promise.resolve(tomProxy(req, res)).catch(next);
+});
