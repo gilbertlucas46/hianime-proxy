@@ -11,6 +11,7 @@ import { animetsuProxy } from '../controllers/animetsuProxy';
 import { encodedProxy } from '../controllers/neoProxy';
 import { ultimateNeoProxy } from '../controllers/ultimateneoproxy';
 import { tomProxy } from '../controllers/tomProxy';
+import { animetsuM3u8Proxy, animetsuSegmentProxy } from '../controllers/animetsuM3u8Proxy';
 
 export const router = express.Router();
 
@@ -31,4 +32,11 @@ router.get('/neo-proxy', encodedProxy);
 router.get('/encoded-proxy', ultimateNeoProxy);
 router.get('/tom-proxy',  (req, res, next) => {
   Promise.resolve(tomProxy(req, res)).catch(next);
+});
+
+router.get('/animetsu-proxy-m3u8', (req, res, next) => {
+  Promise.resolve(animetsuM3u8Proxy(req, res)).catch(next);
+});
+router.get('/animetsu-proxy-segment', (req, res, next) => {
+  Promise.resolve(animetsuSegmentProxy(req, res)).catch(next);
 });
