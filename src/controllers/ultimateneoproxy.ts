@@ -105,7 +105,7 @@ export class If9YoutubeM3U8Transform extends Transform {
         const uriMatch = line.match(/URI="([^"]+)"/);
         if (uriMatch && uriMatch[1]) {
             const originalUrl = uriMatch[1];
-            
+
             // Check if it's already a proxied URL
             if (originalUrl.includes('/encoded-proxy?url=')) {
                 return line;
@@ -127,7 +127,7 @@ export class If9YoutubeM3U8Transform extends Transform {
 
     private createIf9ProxyUrl(url: string): string {
         const separator = this.originalHeaders ? '&' : '';
-        
+
         // Create base64 encoded payload for the URL
         const payload: DecodedPayload = {
             u: url,
@@ -225,7 +225,7 @@ export class JillianDescribeM3U8Transform extends Transform {
 
     private createJillianProxyUrl(url: string): string {
         const separator = this.originalHeaders ? '&' : '';
-        
+
         // For jilliandescribecompany.com, use the URL directly without re-encoding
         return `/encoded-proxy?url=${encodeURIComponent(url)}${separator}${this.originalHeaders}`;
     }
@@ -302,11 +302,11 @@ export class UniversalM3U8Transform extends Transform {
             '#EXT-X-ENDLIST'
         ];
 
-        const hasMasterIndicators = lines.some(line => 
+        const hasMasterIndicators = lines.some(line =>
             masterIndicators.some(indicator => line.includes(indicator))
         );
 
-        const hasMediaIndicators = lines.some(line => 
+        const hasMediaIndicators = lines.some(line =>
             mediaIndicators.some(indicator => line.includes(indicator))
         );
 
@@ -322,7 +322,7 @@ export class UniversalM3U8Transform extends Transform {
 
     private createProxyUrl(url: string): string {
         const separator = this.originalHeaders ? '&' : '';
-        
+
         // Create base64 encoded payload for the URL
         const payload: DecodedPayload = {
             u: url,
@@ -557,9 +557,17 @@ export class UniversalM3U8Transform extends Transform {
             return true;
         }
 
+        // Special handling for ridomovies.tv - proxy .txt files as they contain video segments
+        if (this.originalHeaders.includes('origin=https%3A%2F%2Fridomovies.tv') ||
+            this.originalHeaders.includes('ridomovies.tv')) {
+            if (originalUrl.includes('.txt')) {
+                return true;
+            }
+        }
+
         // For master playlists, proxy streaming-related files
         if (this.isMasterPlaylist) {
-            return originalUrl.includes('.m3u8') || originalUrl.includes('.m3u');
+            return originalUrl.includes('.m3u8') || originalUrl.includes('.m3u') || originalUrl.includes('.txt');
         }
 
         // For media playlists, proxy segments and related files
@@ -567,22 +575,24 @@ export class UniversalM3U8Transform extends Transform {
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
         const subtitleExtensions = ['.vtt', '.srt', '.ass', '.ttml'];
         const keyExtensions = ['.key'];
+        const textExtensions = ['.txt']; // Add .txt for ridomovies.tv compatibility
 
         const allProxyExtensions = [
             ...segmentExtensions,
-            ...imageExtensions, 
+            ...imageExtensions,
             ...subtitleExtensions,
-            ...keyExtensions
+            ...keyExtensions,
+            ...textExtensions
         ];
 
         // Check if URL ends with any proxy-worthy extension
-        const hasProxyExtension = allProxyExtensions.some(ext => 
-            originalUrl.toLowerCase().endsWith(ext) || 
+        const hasProxyExtension = allProxyExtensions.some(ext =>
+            originalUrl.toLowerCase().endsWith(ext) ||
             originalUrl.toLowerCase().includes(ext + '?')
         );
 
         // Also check for common segment patterns
-        const hasSegmentPattern = /seg-\d+|segment\d+|chunk\d+|frag\d+|image\d+/.test(originalUrl);
+        const hasSegmentPattern = /seg-\d+|segment\d+|chunk\d+|frag\d+|image\d+|sublist_\d+/.test(originalUrl);
 
         return hasProxyExtension || hasSegmentPattern;
     }
@@ -615,7 +625,7 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
     } else {
         res.header('Access-Control-Allow-Origin', '*');
     }
-    
+
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range');
     res.header('Access-Control-Allow-Credentials', 'true');
@@ -665,18 +675,18 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "No valid URL found" });
         }
 
-        if(decodedPayload.o?.includes("https://jilliandescribecompany.com")) {
+        if (decodedPayload.o?.includes("https://jilliandescribecompany.com")) {
             targetUrl = encodedUrl
         }
 
         const baseUrl = targetUrl.replace(/[^/]+$/, "");
         const isStaticFile = allowedExtensions.some(ext => targetUrl.endsWith(ext));
-        
+
         console.log("Target URL:", targetUrl);
         console.log("Base URL:", baseUrl);
 
-        const isRidomoviesTextRequest = decodedPayload.o?.includes('ridomovies.tv') && 
-                                       (targetUrl.includes('/txt/') || targetUrl.endsWith('.txt'));
+        const isRidomoviesTextRequest = decodedPayload.o?.includes('ridomovies.tv') &&
+            (targetUrl.includes('/txt/') || targetUrl.endsWith('.txt'));
 
         const isJillianDescribeRequest = decodedPayload.o?.includes('https://jilliandescribecompany.com');
 
@@ -737,10 +747,10 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
         // Extract host URL from decodedPayload.u
         const getHostFromUrl = (url: string): string => {
             try {
-            const urlObj = new URL(url);
-            return `${urlObj.protocol}//${urlObj.host}`;
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}`;
             } catch {
-            return '';
+                return '';
             }
         };
 
@@ -760,7 +770,7 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'cross-site',
             'Upgrade-Insecure-Requests': '1',
-            'Referer': customReferer.includes("ridomovies.tv") ?  !getHostFromUrl(decodedPayload.u).includes("ridoo") ? "https://closeload.top/" : "https://ridoo.net/" : customReferer,
+            'Referer': customReferer.includes("ridomovies.tv") ? !getHostFromUrl(decodedPayload.u).includes("ridoo") ? "https://closeload.top/" : "https://ridoo.net/" : customReferer,
             'Origin': customOrigin.includes("ridomovies.tv") ? !getHostFromUrl(decodedPayload.u).includes("ridoo") ? "https://srv10.cdnimages509.sbs" : "https://ridoo.net" : customOrigin,
             'User-Agent': customUserAgent
         };
@@ -810,13 +820,13 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
 
         if (isRidomoviesTextRequest) {
             console.log("Universal Proxy: Handling ridomovies.tv text format as M3U8");
-            
+
             // Force M3U8 content type
             headers['Content-Type'] = 'application/vnd.apple.mpegurl; charset=UTF-8';
-            
+
             // Ensure CORS headers
-            headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
-                ? req.headers.origin 
+            headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin)
+                ? req.headers.origin
                 : '*';
             headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
             headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range';
@@ -831,13 +841,13 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
 
         if (isJillianDescribeRequest) {
             console.log("Universal Proxy: Handling jilliandescribecompany.com M3U8 format");
-            
+
             // Force M3U8 content type
             headers['Content-Type'] = 'application/vnd.apple.mpegurl; charset=UTF-8';
-            
+
             // Ensure CORS headers
-            headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
-                ? req.headers.origin 
+            headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin)
+                ? req.headers.origin
                 : '*';
             headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
             headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range';
@@ -852,22 +862,22 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
 
         if (isIf9YoutubeRequest) {
             console.log("Universal Proxy: Handling if9.ppzj-youtube.cfd request");
-            
+
             // Only force M3U8 content type for actual M3U8 files
-            const isActualM3U8 = targetUrl.includes('.m3u8') || 
-                                targetUrl.includes('.m3u') || 
-                                headers['content-type']?.includes('mpegurl') ||
-                                headers['content-type']?.includes('application/vnd.apple.mpegurl');
+            const isActualM3U8 = targetUrl.includes('.m3u8') ||
+                targetUrl.includes('.m3u') ||
+                headers['content-type']?.includes('mpegurl') ||
+                headers['content-type']?.includes('application/vnd.apple.mpegurl');
 
             if (isActualM3U8) {
                 console.log("Universal Proxy: Handling if9.ppzj-youtube.cfd M3U8 format");
-                
+
                 // Force M3U8 content type only for M3U8 files
                 headers['Content-Type'] = 'application/vnd.apple.mpegurl; charset=UTF-8';
-                
+
                 // Ensure CORS headers
-                headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
-                    ? req.headers.origin 
+                headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin)
+                    ? req.headers.origin
                     : '*';
                 headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
                 headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range';
@@ -880,10 +890,10 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
                 return;
             } else {
                 console.log("Universal Proxy: Handling if9.ppzj-youtube.cfd non-M3U8 file (keeping original content type)");
-                
+
                 // For non-M3U8 files, keep the original content type and just add CORS headers
-                headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
-                    ? req.headers.origin 
+                headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin)
+                    ? req.headers.origin
                     : '*';
                 headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
                 headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range';
@@ -931,8 +941,8 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
         }
 
         // Ensure CORS headers
-        headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin) 
-            ? req.headers.origin 
+        headers['Access-Control-Allow-Origin'] = req.headers.origin && allowedOrigins.includes(req.headers.origin)
+            ? req.headers.origin
             : '*';
         headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
         headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Referer, User-Agent, Authorization, Range';
@@ -946,10 +956,10 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
         }
 
         // Transform M3U8 playlists with enhanced detection
-        const isPlaylist = targetUrl.includes('.m3u8') || 
-                          targetUrl.includes('.m3u') || 
-                          headers['content-type']?.includes('mpegurl') ||
-                          headers['content-type']?.includes('application/vnd.apple.mpegurl');
+        const isPlaylist = targetUrl.includes('.m3u8') ||
+            targetUrl.includes('.m3u') ||
+            headers['content-type']?.includes('mpegurl') ||
+            headers['content-type']?.includes('application/vnd.apple.mpegurl');
 
         if (isPlaylist) {
             console.log(`Universal Proxy: Transforming M3U8: ${targetUrl.split('/').pop()}`);
@@ -973,7 +983,7 @@ export const ultimateNeoProxy = async (req: Request, res: Response) => {
         // Ensure CORS headers on error
         const origin = req.headers.origin;
         const allowedOrigins = ['https://cinemaos.live', 'https://www.cinemaos.live', '*'];
-        
+
         if (origin && allowedOrigins.includes(origin)) {
             res.header('Access-Control-Allow-Origin', origin);
         } else {
