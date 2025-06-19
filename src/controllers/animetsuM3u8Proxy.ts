@@ -50,15 +50,20 @@ export const animetsuM3u8Proxy = async (req: Request, res: Response) => {
                 return relativePath; // Already a full URL
             }
             
-            if (inputUrl.includes('stream.animetsu.cc/bato/')) {
-                return `https://stream.animetsu.cc/bato/${relativePath}`;
-            } else if (inputUrl.includes('tiddies.animetsu.cc/zaza/')) {
-                return `https://tiddies.animetsu.cc/zaza/${relativePath}`;
+            // Extract the base URL from the input URL dynamically
+            const urlObj = new URL(inputUrl);
+            const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+            
+            // Check if the path contains specific directories and construct accordingly
+            if (inputUrl.includes('/bato/')) {
+                return `${baseUrl}/bato/${relativePath}`;
+            } else if (inputUrl.includes('/zaza/')) {
+                return `${baseUrl}/zaza/${relativePath}`;
             }
             
-            // Fallback: try to extract base URL
-            const urlObj = new URL(inputUrl);
-            return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1)}${relativePath}`;
+            // Fallback: construct URL with the directory path from original URL
+            const pathDir = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
+            return `${baseUrl}${pathDir}${relativePath}`;
         };
         
         // Check if this is a master playlist (contains #EXT-X-STREAM-INF)
@@ -167,14 +172,8 @@ export const animetsuSegmentProxy = async (req: Request, res: Response) => {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
         };
 
-        // Set appropriate referer and origin based on the URL
-        if (url.includes('stream.animetsu.cc')) {
-            requestHeaders['Referer'] = 'https://animetsu.cc/';
-            requestHeaders['Origin'] = 'https://animetsu.cc';
-        } else if (url.includes('tiddies.animetsu.cc')) {
-            requestHeaders['Referer'] = 'https://animetsu.cc/';
-            requestHeaders['Origin'] = 'https://animetsu.cc';
-        }
+        requestHeaders['Referer'] = 'https://animetsu.cc/';
+        requestHeaders['Origin'] = 'https://animetsu.cc';
 
         // Forward Range header if present
         if (req.headers.range) {
