@@ -107,7 +107,7 @@ export const primeProxy = async (req: Request, res: Response) => {
         requestHeaders['Range'] = req.headers.range;
       }
 
-      const response = await axios.get(targetUrl, {
+      const response = await axios.get("https://sudoproxy.kubuuus.pl/?destination="+targetUrl, {
         responseType: 'stream',
         headers: requestHeaders,
         maxRedirects: 5,
