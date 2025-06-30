@@ -1,7 +1,28 @@
 import axios from "axios";
 import { Request, Response } from "express";
+import crypto from "crypto";
 
-// Function to rewrite URLs in M3U8 content
+const SECRET_KEY = "12345678901234567890123456789012"; // 32 bytes for AES-256
+const IV_LENGTH = 16; // AES block size
+
+export function encodePayload(payload: { url: string; ismp4?: boolean }): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(SECRET_KEY), iv);
+  let encrypted = cipher.update(JSON.stringify(payload), "utf8", "base64");
+  encrypted += cipher.final("base64");
+  // Return iv + encrypted, both base64
+  return iv.toString("base64") + ":" + encrypted;
+}
+export function decodePayload(token: string): { url: string; ismp4?: boolean } {
+  const [ivBase64, encrypted] = token.split(":");
+  const iv = Buffer.from(ivBase64, "base64");
+  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(SECRET_KEY), iv);
+  let decrypted = decipher.update(encrypted, "base64", "utf8");
+  decrypted += decipher.final("utf8");
+  return JSON.parse(decrypted);
+}
+
+// Function to rewrite URLs in M3U8 content using AES encoding
 function rewriteM3U8Content(content: string, baseUrl: string, proxyBaseUrl: string) {
   const lines = content.split('\n');
   const rewrittenLines = lines.map(line => {
@@ -16,19 +37,23 @@ function rewriteM3U8Content(content: string, baseUrl: string, proxyBaseUrl: stri
             fullUrl = baseUrl + '/' + url;
           }
         }
-        return `URI="${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(fullUrl)}"`;
+        const encoded = encodePayload({ url: fullUrl });
+        return `URI="${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(encoded)}"`;
       });
     }
 
     // Handle media segments and other URIs
     if (line.startsWith('/') && !line.startsWith('#')) {
       const fullUrl = baseUrl + line;
-      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(fullUrl)}`;
+      const encoded = encodePayload({ url: fullUrl });
+      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(encoded)}`;
     } else if (line.startsWith('http') && !line.startsWith('#')) {
-      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(line)}`;
+      const encoded = encodePayload({ url: line });
+      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(encoded)}`;
     } else if (!line.startsWith('#') && !line.startsWith('http') && line.trim() !== '') {
       const fullUrl = baseUrl + '/' + line;
-      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(fullUrl)}`;
+      const encoded = encodePayload({ url: fullUrl });
+      return `${proxyBaseUrl}/prime-proxy?url=${encodeURIComponent(encoded)}`;
     }
 
     return line;
@@ -51,14 +76,15 @@ export const primeProxy = async (req: Request, res: Response) => {
   }
 
   try {
-    const targetUrl = req.query.url as string;
-    const isMp4 = req.query.ismp4 === "true";
-
-    if (!targetUrl) {
+    const encodedToken = req.query.url as string;
+    if (!encodedToken) {
       return res.status(400).send('Missing url parameter');
     }
 
-    if (isMp4) {
+    // Always decode the payload
+    const { url: targetUrl, ismp4 } = decodePayload(decodeURIComponent(encodedToken));
+
+    if (ismp4) {
       // --- MP4 Streaming Logic ---
       const requestHeaders: any = {
         'Accept': '*/*',
@@ -85,7 +111,7 @@ export const primeProxy = async (req: Request, res: Response) => {
         responseType: 'stream',
         headers: requestHeaders,
         maxRedirects: 5,
-        timeout: 30000,
+        timeout: 5000,
         validateStatus: status => status < 400
       });
 
@@ -151,6 +177,7 @@ export const primeProxy = async (req: Request, res: Response) => {
       const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/'));
       const proxyBaseUrl = `${req.protocol}://${req.get('host')}`;
 
+      // All links in the playlist are now AES-encrypted
       const rewrittenContent = rewriteM3U8Content(content, baseUrl, proxyBaseUrl);
       res.send(rewrittenContent);
     } else {
