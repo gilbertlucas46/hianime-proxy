@@ -46,7 +46,7 @@ export const animetsuProxy = async (req: Request, res: Response) => {
             responseType: 'stream',
             headers: requestHeaders,
             maxRedirects: 5,
-            timeout: 10000,
+            timeout: 30000,
             validateStatus: function (status) {
                 return status < 400; // Accept 200, 206 (partial content), etc.
             }
