@@ -14,6 +14,7 @@ import { tomProxy } from '../controllers/tomProxy';
 import { animetsuM3u8Proxy, animetsuSegmentProxy } from '../controllers/animetsuM3u8Proxy';
 import { superProxy } from '../controllers/superProxy';
 import { superTransform } from '../controllers/superTransform';
+import { primeProxy } from '../controllers/primeProxy';
 
 export const router = express.Router();
 
@@ -49,4 +50,8 @@ router.get("/super-proxy", (req, res, next) => {
 
 router.get('/super-transform', (req, res, next) => {
   Promise.resolve(superTransform(req, res)).catch(next);
+});
+
+router.get('/prime-proxy', (req, res, next) => {
+  Promise.resolve(primeProxy(req, res)).catch(next);
 });
