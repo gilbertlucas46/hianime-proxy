@@ -15,6 +15,7 @@ import { animetsuM3u8Proxy, animetsuSegmentProxy } from '../controllers/animetsu
 import { superProxy } from '../controllers/superProxy';
 import { superTransform } from '../controllers/superTransform';
 import { primeProxy } from '../controllers/primeProxy';
+import { mp4Proxy } from '../controllers/mp4Proxy';
 
 export const router = express.Router();
 
@@ -54,4 +55,9 @@ router.get('/super-transform', (req, res, next) => {
 
 router.get('/prime-proxy', (req, res, next) => {
   Promise.resolve(primeProxy(req, res)).catch(next);
+});
+
+
+router.get('/mp4-proxy', (req, res, next) => {
+  Promise.resolve(mp4Proxy(req, res)).catch(next);
 });
