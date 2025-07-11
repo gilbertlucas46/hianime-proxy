@@ -202,10 +202,16 @@ export const superTransform = async (req: Request, res: Response) => {
     }
 
     try {
-        const url = req.query.url as string;
+        let url = req.query.url as string;
         const referer = req.query.referer as string || 'https://hexa.watch/';
         
         if (!url) return res.status(400).json("url is required");
+        
+        // Fix URL encoding issues - restore + characters that were converted to spaces
+        url = url.replace(/\s/g, '+');
+        
+        console.log("Super Transform: Original URL from query:", req.query.url);
+        console.log("Super Transform: Fixed URL:", url);
 
         console.log("Super Transform: Processing URL:", url);
         console.log("Super Transform: Using Referer:", referer);
