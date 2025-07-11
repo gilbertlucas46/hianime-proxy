@@ -7,7 +7,7 @@ export class M3U8Transform extends Transform {
     private baseUrl: string;
     private proxyBaseUrl: string;
 
-    constructor(originalUrl: string, proxyBaseUrl: string = '') {
+    constructor(originalUrl: string, proxyBaseUrl: string = 'https://tomsy.pubba.uk') {
         super();
         this.buffer = '';
         this.baseUrl = this.extractBaseUrl(originalUrl);
@@ -70,8 +70,9 @@ export class M3U8Transform extends Transform {
             targetUrl = this.baseUrl + url;
         }
 
-        // Create proxy URL
-        return `/tom-proxy?url=${encodeURIComponent(targetUrl)}`;
+        // Create proxy URL with full domain
+        const proxyUrl = `${this.proxyBaseUrl}/tom-proxy?url=${encodeURIComponent(targetUrl)}`;
+        return proxyUrl;
     }
 }
 
@@ -194,7 +195,7 @@ export const tomProxy = async (req: Request, res: Response) => {
             res.set('Content-Type', 'application/vnd.apple.mpegurl; charset=UTF-8');
             
             // Transform the M3U8 content
-            const transform = new M3U8Transform(targetUrl);
+            const transform = new M3U8Transform(targetUrl, 'https://tomsy.pubba.uk');
             response.data.pipe(transform).pipe(res);
         } else {
             console.log(`Tom Proxy: Piping ${fileExtension || 'unknown'} file directly`);

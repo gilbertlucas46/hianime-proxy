@@ -132,7 +132,7 @@ export class M3U8Transform extends Transform {
         }
 
         // Create proxy URL with full domain
-        const proxyUrl = `${this.proxyBaseUrl}/super-transform?url=${encodeURIComponent(targetUrl)}`;
+        const proxyUrl = `${this.proxyBaseUrl}/vidfast?url=${encodeURIComponent(targetUrl)}`;
         console.log(`Super Transform: Final proxy URL: ${proxyUrl}`);
         return proxyUrl;
     }
@@ -156,7 +156,7 @@ export class M3U8Transform extends Transform {
     }
 }
 
-export const superTransform = async (req: Request, res: Response) => {
+export const vidfast = async (req: Request, res: Response) => {
     console.log("=== SUPER TRANSFORM FUNCTION CALLED ===");
     console.log("Super Transform: Request URL:", req.url);
     console.log("Super Transform: Query params:", req.query);

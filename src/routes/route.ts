@@ -16,6 +16,7 @@ import { superProxy } from '../controllers/superProxy';
 import { superTransform } from '../controllers/superTransform';
 import { primeProxy } from '../controllers/primeProxy';
 import { mp4Proxy } from '../controllers/mp4Proxy';
+import { vidfast } from '../controllers/vidfast';
 
 export const router = express.Router();
 
@@ -60,4 +61,8 @@ router.get('/prime-proxy', (req, res, next) => {
 
 router.get('/mp4-proxy', (req, res, next) => {
   Promise.resolve(mp4Proxy(req, res)).catch(next);
+});
+
+router.get('/vidfast', (req, res, next) => {
+  Promise.resolve(vidfast(req, res)).catch(next);
 });
