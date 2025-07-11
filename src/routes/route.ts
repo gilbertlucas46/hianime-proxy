@@ -14,6 +14,7 @@ import { tomProxy } from '../controllers/tomProxy';
 import { animetsuM3u8Proxy, animetsuSegmentProxy } from '../controllers/animetsuM3u8Proxy';
 import { superProxy } from '../controllers/superProxy';
 import { superTransform } from '../controllers/superTransform';
+import { getObfuscatedUrl, resolveObfuscatedUrl } from '../controllers/obfuscatedUrl';
 import { primeProxy } from '../controllers/primeProxy';
 import { mp4Proxy } from '../controllers/mp4Proxy';
 import { vidfast } from '../controllers/vidfast';
@@ -52,6 +53,15 @@ router.get("/super-proxy", (req, res, next) => {
 
 router.get('/super-transform', (req, res, next) => {
   Promise.resolve(superTransform(req, res)).catch(next);
+});
+
+// Obfuscated URL endpoints
+router.get('/get-obfuscated-url', (req, res, next) => {
+  Promise.resolve(getObfuscatedUrl(req, res)).catch(next);
+});
+
+router.get('/p/:id', (req, res, next) => {
+  Promise.resolve(resolveObfuscatedUrl(req, res)).catch(next);
 });
 
 router.get('/prime-proxy', (req, res, next) => {

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Request, Response } from "express";
 import { Transform, TransformCallback } from 'stream';
+import { createObfuscatedUrl } from './obfuscatedUrl';
 
 const PROXY_BASE_URL = process.env.PROXY_BASE_URL || 'http://localhost:4004';
 
@@ -131,10 +132,16 @@ export class M3U8Transform extends Transform {
             console.log(`Super Transform: URL "${url}" is already absolute`);
         }
 
-        // Create proxy URL with full domain
-        const proxyUrl = `${this.proxyBaseUrl}/super-transform?url=${encodeURIComponent(targetUrl)}`;
-        console.log(`Super Transform: Final proxy URL: ${proxyUrl}`);
-        return proxyUrl;
+        // Create obfuscated URL instead of direct proxy URL
+        const obfuscatedUrl = this.createObfuscatedUrl(targetUrl);
+        console.log(`Super Transform: Final obfuscated URL: ${obfuscatedUrl}`);
+        return obfuscatedUrl;
+    }
+
+    private createObfuscatedUrl(targetUrl: string): string {
+        const obfuscatedId = createObfuscatedUrl(targetUrl);
+        const baseUrl = process.env.PROXY_BASE_URL || 'http://localhost:4004';
+        return `${baseUrl}/p/${obfuscatedId}`;
     }
 
     // Add a test method to verify the transformation logic
